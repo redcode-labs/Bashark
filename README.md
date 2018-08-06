@@ -1,4 +1,4 @@
-<h1 align="center"> **Bashark** </h1> <br>
+<h1 align="center"> Bashark </h1> <br>
 <p align="center">
   <a>
     <img alt="Bashark" title="Bashark" src="logo.svg" width="450">
@@ -22,7 +22,7 @@
 ## Introduction
 Bashark aids pentesters and security researchers during the post-exploitation phase of security audits.
 
-##Usage
+## Usage
 To launch Bashark on compromised host, simply source the `bashark.sh` script from terminal:
 `$ source bashark.sh`
 Then type `help` to see Bashark's help menu
