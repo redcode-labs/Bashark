@@ -233,8 +233,8 @@ i(){
         else
             is_root="(${red}No root privilleges${reset})"
         fi
-        local_ip=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
-       _ip=`wget http://ipecho.net/plain -O - -q ; echo`
+        local_ip=`ip address | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
+       	global_ip=`wget http://ipecho.net/plain -O - -q ; echo`
         if [ `cat /proc/sys/kernel/randomize_va_space` = "2" ]; then
             aslr="${red}Enabled${reset} (data segment randomization)"
         elif [ `cat /proc/sys/kernel/randomize_va_space` = "1" ]; then
