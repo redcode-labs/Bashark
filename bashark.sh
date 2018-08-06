@@ -667,7 +667,7 @@ fileinfo(){
             fi
             echo "
         ${green}*${reset}NAME:            $1
-        ${green}*${reset}CREATION DATE:   $(stat -c %y x.txt | sed 's/^\([0-9\-]*\).*/\1/')
+        ${green}*${reset}CREATION DATE:   $(stat -c %y $1| sed 's/^\([0-9\-]*\).*/\1/')
         ${green}*${reset}SIZE:            $(stat --printf="%s" $1) bytes
         ${green}*${reset}EXECUTABLE:      ${executable}
         ${green}*${reset}ENCODING:        $(file -bi $1)
