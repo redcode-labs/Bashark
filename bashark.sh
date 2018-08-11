@@ -683,7 +683,98 @@ fileinfo(){
     fi
 }
 
+fndre(){ 
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            fndre [-h] FILE
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            FILE    File to inspect
+        ${underline}DESCRIPTION:${reset}
+            Search for most popular regexes in a file (gmail and ip addresses, plaintext passwords, credit cards etc.)"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the file to inspect"
+        elif [ ! -f $1 ]; then
+            print_error "No such file"
+        else
+            filename=$1
+            declare -A regexes
+            regexes[IP_addresses]="^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"
+            regexes[MAC_addresses]="(?:[0-9a-fA-F]:?){12}"
+            regexes[Gmail_addresses]="\s.*@gmail.com"
+            regexes[Plaintext_passwords]="[Pp]assword\s*[:=-].*\s"
+            regexes[Usernames]="[Uu]ser\s*[:=-].*\s"
+            regexes[Mastercard_regex]="[51-55]\d{14}"
+            regexes[Visa_regex]="4\d{15}|4\d{12}"
+            regexes[Discover_regex]="6011\d{12}|65\d{14}"
+            regexes[AmericanExpress_regex]="34\d{13}|37\d{13}"
+            regexes[DinersClub_regex]="[300-305]/d{11}|36/d{12}|38/d{12}"
+            regexes[JCB_regex]="35\d{14}|2131\d{11}|1800\d{11})"  
 
+            for key in ${!regexes[@]}; do
+                echo $regexes[$key]
+                print_good "$key search results:"
+                re = $regexes[$key]
+                grep -oE "$re" $filename
+            done
+        fi
+    fi
+}
+
+
+bruteforce(){
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            bruteforce [-h] DICTIONARY FILE
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            FILE        File to bruteforce
+            DICTIONARY  Dictionary to use
+        ${underline}DESCRIPTION:${reset}
+            Bruteforce a file with a password"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the dictionary"
+        if [ $# -eq 1 ]; then
+            print_error "Specify the file to bruteforce"
+        elif [ ! -f $1 ]; then
+            print_error "No such dictionary"
+        elif [ ! -f $2 ]; then
+            print_error "No such file"
+        else
+            dictionary=$1
+            filename=$2
+            cracked=0
+            for word in $(cat $dictionary); do
+                if [ ".zip" in $filename ]; then
+                    out=$(unzip -R $word $filename)
+                    if [ "inflating" in $out ]; then
+                        print_good "Found password: $green$bold$word$reset"
+                        (($cracked++))
+                        break
+                    else
+                        :
+                    fi
+                elif [ ".rar" in $filename ]; then
+                    out=$(rar x -p"$word" $filename 1>/dev/null 2>/dev/null)
+                    success=`echo $?`
+                    if [ "$success" = 0 ]; then
+                        print_good "Found password: $green$bold$word$reset"
+                        (($cracked++))
+                        break
+                    else
+                        :
+                    fi
+                fi
+            done
+            if [ $cracked = 0 ]; then
+                print_error "Password not found. Try another dictionary"
+            fi
+        fi
+    fi
+
+}
 
 ###Commands that require root
 portblock(){
@@ -805,10 +896,12 @@ Bashark ver. 1.0 Commands:
 
         (${green}no root required${reset}):
         ${bold}_${reset}${green}            -> ${reset}Go back to previous directory
+        ${bold}bruteforce${reset}${green}   -> ${reset}Perform a dictionary attack against a protected file
         ${bold}c${reset}${green}            -> ${reset}Clear screen
         ${bold}cleanup${reset}${green}      -> ${reset}Modify Bashark cleanup routine settings
         ${bold}esc${reset}${green}          -> ${reset}Escape to a non-restricted shell
         ${bold}fnd${reset}${green}          -> ${reset}Recursively search for string occurrence in current directory
+        ${bold}fndre${reset}${green}        -> ${reset}Search for most popular regullar expressions in a file
         ${bold}fileinfo${reset}${green}     -> ${reset}Inspect a file
         ${bold}getapp${reset}${green}       -> ${reset}Enumerate installed applications
         ${bold}getconf${reset}${green}      -> ${reset}Enumerate configuration files
