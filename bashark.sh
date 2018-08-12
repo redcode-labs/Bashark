@@ -736,6 +736,7 @@ bruteforce(){
     else
         if [ $# -eq 0 ]; then
             print_error "Specify the dictionary"
+        fi
         if [ $# -eq 1 ]; then
             print_error "Specify the file to bruteforce"
         elif [ ! -f $1 ]; then
