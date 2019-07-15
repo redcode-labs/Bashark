@@ -16,7 +16,7 @@
 - [Introduction](#introduction)
 - [Usage](#usage)
 - [Features](#features)
-- [Demo](#demo)
+- [Screenshots](#screenshots)
 - [License](#license)
 
 ## Introduction
@@ -42,9 +42,19 @@ Then type `help` to see Bashark's help menu
 * Full tab completion
 
 
-## Demo
+## Screenshots
 
-<a href="https://asciinema.org/a/YJEbXtuz3lBb16pIsfj7mdnEE"><img src="https://asciinema.org/a/YJEbXtuz3lBb16pIsfj7mdnEE.png" width="836"/></a>
+<p align="center">
+  <a>
+    <img alt="Bashark" title="Bashark" src="screenshot1.png" width="836">
+  </a>
+</p>
+
+<p align="center">
+  <a>
+    <img alt="Bashark" title="Bashark" src="screenshot2.png" width="836">
+  </a>
+</p>
 
 ## License
 This software is under [MIT License](https://en.wikipedia.org/wiki/MIT_License)
