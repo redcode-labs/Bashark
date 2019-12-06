@@ -713,9 +713,8 @@ fndre(){
             regexes[JCB_regex]="35\d{14}|2131\d{11}|1800\d{11})"  
 
             for key in ${!regexes[@]}; do
-                echo $regexes[$key]
                 print_good "$key search results:"
-                re = $regexes[$key]
+                re=${regexes[$key]}
                 grep -oE "$re" $filename
             done
         fi
