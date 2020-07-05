@@ -16,7 +16,6 @@
 - [Introduction](#introduction)
 - [Usage](#usage)
 - [Features](#features)
-- [Screenshots](#screenshots)
 - [License](#license)
 
 ## Introduction
@@ -42,19 +41,6 @@ Then type `help` to see Bashark's help menu
 * Full tab completion
 
 
-## Screenshots
-
-<p align="center">
-  <a>
-    <img alt="Bashark" title="Bashark" src="screenshot1.png" width="836">
-  </a>
-</p>
-
-<p align="center">
-  <a>
-    <img alt="Bashark" title="Bashark" src="screenshot2.png" width="836">
-  </a>
-</p>
 
 ## License
 This software is under [MIT License](https://en.wikipedia.org/wiki/MIT_License)
