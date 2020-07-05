@@ -11,7 +11,6 @@ reset=`tput sgr0`
 bold=`tput bold`
 underline=`tput smul`
 
-sun="${red}o${reset}${yellow}O${reset}"
 
 echo '
     ____             __               __                 ___ ____ 
@@ -21,7 +20,7 @@ echo '
 /_____/\__,_/____/_/ /_/\__,_/_/  /_/|_|    |___(_)   /_(_)____/  
 '
 echo "${red}<.>${reset} Bashark 1.0 post exploitation script"
-echo "${red}<.>${reset} Created by: TheSecondSun ${sun} (thescndsun@gmail.com)"
+echo "${red}<.>${reset} Created by: Wintrmvte"
 printf "\n"
 echo "[*] Type 'help' to show available commands"
 printf "\n"
