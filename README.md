@@ -11,14 +11,6 @@
 
 ![Language](https://img.shields.io/badge/Language-Bash-blue.svg?longCache=true&style=flat-square)   ![License](https://img.shields.io/badge/License-MIT-red.svg?longCache=true&style=flat-square)   ![Version](https://img.shields.io/badge/Version-2.0-green.svg?longCache=true&style=flat-square)
 
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Usage](#usage)
-- [Features](#features)
-- [License](#license)
-
-## Introduction
 Bashark aids pentesters and security researchers during the post-exploitation phase of security audit.
 
 ## Usage
