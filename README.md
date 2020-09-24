@@ -1,4 +1,4 @@
-<h1 align="center"> Bashark </h1> <br>
+<h1 align="center"> Bashark 2.0 </h1> <br>
 <p align="center">
   <a>
     <img alt="Bashark" title="Bashark" src="logo.svg" width="450">
@@ -6,10 +6,10 @@
 </p>
 
 <p align="center">
-  Post exploitation toolkit written in pure Bash
+  Post exploitation toolkit 
 </p>
 
-![Language](https://img.shields.io/badge/Language-Bash-blue.svg?longCache=true&style=flat-square)   ![License](https://img.shields.io/badge/License-MIT-red.svg?longCache=true&style=flat-square)   ![Version](https://img.shields.io/badge/Version-1.0-green.svg?longCache=true&style=flat-square)
+![Language](https://img.shields.io/badge/Language-Bash-blue.svg?longCache=true&style=flat-square)   ![License](https://img.shields.io/badge/License-MIT-red.svg?longCache=true&style=flat-square)   ![Version](https://img.shields.io/badge/Version-2.0-green.svg?longCache=true&style=flat-square)
 
 ## Table of Contents
 
@@ -19,28 +19,14 @@
 - [License](#license)
 
 ## Introduction
-Bashark aids pentesters and security researchers during the post-exploitation phase of security audits.
+Bashark aids pentesters and security researchers during the post-exploitation phase of security audit.
 
 ## Usage
-To launch Bashark on compromised host, simply source the `bashark.sh` script from terminal:
+To launch this tool on compromised host, simply source the `bashark.sh` script from terminal:
+
 `$ source bashark.sh`
-Then type `help` to see Bashark's help menu
 
-
-## Features
-
-* Single Bash script
-* Lightweight and fast
-* Multi-platform: Unix, OSX, Solaris etc.
-* No external dependencies
-* Immune to heuristic and behavioural analysis
-* Built-in aliases of often used shell commands
-* Extends system shell with post-exploitation oriented functionalities
-* Stealthy, with custom cleanup routine activated on exit
-* Easily extensible (add new commands by creating Bash functions) 
-* Full tab completion
-
-
+Then type `help` to see the help menu
 
 ## License
 This software is under [MIT License](https://en.wikipedia.org/wiki/MIT_License)

