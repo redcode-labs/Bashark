@@ -49,7 +49,7 @@ command_error_exit(){
 root_check(){
 if [[ $UID -ne 0 ]]
 then
-	print_error 'You nedd to be root to run this command'
+	print_error 'You need to be root to run this command'
 	echo
 	exit 1
 fi
