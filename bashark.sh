@@ -632,7 +632,7 @@ getperm(){
             fi
             if [[ "$@" =~ .*-c.* ]]; then
                 print_good "Results from common places:"
-                for i in `locate -r "bin$"`; do find $i \( -perm -4000 -o -perm -2000 \) -type f 2>/dev/null; done 
+                find / -type d -name "*bin" -exec find {} \( -perm -4000 -o -perm -2000 \) -type f \; 2>/dev/null
             fi
             if [[ "$@" =~ .*-wd.* ]]; then
                 print_good "World-writeable directories:"
