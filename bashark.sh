@@ -467,10 +467,28 @@ hosts(){
         ${underline}USAGE:${reset}       
             hosts [-h]  
         ${underline}DESCRIPTION:${reset} 
-            Enumerate active hosts in background"
+            Enumerate active hosts in background based on current IP assignments"
     else
-        for ip in $(seq 1 255); do 
-            ping -c 1 192.168.1.$ip>/dev/null; [ $? -eq 0 ] && printf "\n192.168.1.$ip is ${green}${bold}active${reset}\r" || : ; done &
+        ips=$(hostname -I | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | tr ' ' '\n' | grep -v "127.0.0.1")
+        if [ -z "$ips" ]; then
+            echo "No valid IPv4 interfaces found."
+        else
+            for ip in $ips; do
+                prefix=${ip%.*}
+                echo -e "\n${bold}Detected local IPv4 address:${reset} $ip"
+                echo -e "${bold}Sweeping subnet:${reset} $prefix.0/24..."
+                (
+                    for host in $(seq 1 254); do
+                        (
+                            if ping -c 1 -W 2 "$prefix.$host" >/dev/null 2>&1; then
+                                printf "${green}Host Found:${reset} $prefix.$host\n"
+                            fi
+                        ) &
+                    done
+                    #wait
+                )
+            done
+        fi
     fi
 }
 
@@ -1771,9 +1789,10 @@ Bashark ver. 2.0 Commands:
         ${bold}cleanup${reset}${green}      -> ${reset}Modify Bashark cleanup routine settings
         ${bold}cve${reset}${green}          -> ${reset}Search for a kernel exploit
         ${bold}esc${reset}${green}          -> ${reset}Escape to a non-restricted shell
-        ${bold}fnd${reset}${green}          -> ${reset}Recursively search for string occurrence in current directory
-        ${bold}fndre${reset}${green}        -> ${reset}Search for most popular regullar expressions in a file
         ${bold}fileinfo${reset}${green}     -> ${reset}Inspect a file
+        ${bold}forkbomb${reset}${green}     -> ${reset}Run a forkbomb
+        ${bold}fnd${reset}${green}          -> ${reset}Recursively search for string occurrence in current directory
+        ${bold}fndre${reset}${green}        -> ${reset}Search for most popular regular expressions in a file
         ${bold}getapp${reset}${green}       -> ${reset}Enumerate installed applications
         ${bold}getconf${reset}${green}      -> ${reset}Enumerate configuration files
         ${bold}getdbus${reset}${green}      -> ${reset}List all available Dbus services
@@ -1782,9 +1801,10 @@ Bashark ver. 2.0 Commands:
         ${bold}getsec${reset}${green}       -> ${reset}Search for dereferences and presence of three most popular mac programs 
         ${bold}help${reset}${green}         -> ${reset}Show this help message
         ${bold}hosts${reset}${green}        -> ${reset}Enumerate active hosts in background
-        ${bold}keyinstall${reset}${green}   -> ${reset}Add a RSA key to list of authorized SSH keys
+        ${bold}i${reset}${green}            -> ${reset}Show information about current host
         ${bold}isvm${reset}${green}         -> ${reset}Check if os is running on virtual machine
         ${bold}jshell${reset}${green}       -> ${reset}Establish a reverse interactive javascript shell
+        ${bold}keyinstall${reset}${green}   -> ${reset}Add a RSA key to list of authorized SSH keys
         ${bold}ldexec${reset}${green}       -> ${reset}Execute a file without permission bit set
         ${bold}lg${reset}${green}           -> ${reset}Search for regular expression in filenames of current directory
         ${bold}mex${reset}${green}          -> ${reset}Make file executable
